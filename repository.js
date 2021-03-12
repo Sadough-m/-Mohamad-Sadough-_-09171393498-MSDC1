@@ -34,7 +34,8 @@ var url = "mongodb://localhost:27017/"
                  dbo.collection(collectamName).insertOne(obj, function (err, res) {
                      if (err) throw err;
                      console.log("1 document inserted");
-                     resolve(res.insertedCount)
+                     // console.log(res);
+                     resolve(res.insertedId)
 
                      db.close();
                  });
@@ -162,7 +163,7 @@ return  test
                  var newvalues = { $set: newObj };
                  dbo.collection(collectamName).updateOne(query, newvalues, function(err, res) {
                      if (err) throw err;
-                     console.log("1 document updated");
+                     // console.log("1 document updated");
                      resolve(res.result)
                      db.close();
                  });
