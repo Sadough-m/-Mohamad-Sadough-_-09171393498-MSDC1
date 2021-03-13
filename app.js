@@ -54,24 +54,31 @@ function checkNumOption(ans) {
         return {result: false, message: 'تعداد گزینه هابین 2 تا 4 گزینه باشد'}
 
 }
-async function calculateScore(test_id,user){
-    console.log('calculateScore user',user)
 
-    let allQuestion=await repo.all('exam','questions')
-    console.log('allQuestion',allQuestion)
-    return    user.lst_ans.filter(y => y.test_id == test_id).map(y => ({
-            questuinDetail:allQuestion.find(z=>z._id==y.question_id) ,
-            answer_id: y.answer_id,
+async function calculateScore(test_id, user) {
+    console.log('calculateScore user', user)
 
-        })).map(y=>({
-                selectedOption:y.questuinDetail?y.questuinDetail.ans.find(z=>z.id==y.answer_id):null,
-                rate:y.questuinDetail?y.questuinDetail.quest_rate:0,
-                bonos:user.bonos_score.find(z=>z.test_id==test_id)
-            })).map(y=>({
-                score:y.selectedOption?y.selectedOption.correct*y.rate:0+y.bonos?y.bonos:0
-            })).reduce((n,i)=>n+i.score,0)
+    let allQuestion = await repo.all('exam', 'questions')
+    console.log('allQuestion', allQuestion)
+    return user.lst_ans.filter(y => y.test_id == test_id).map(y => ({
+        questuinDetail: allQuestion.find(z => z._id == y.question_id),
+        answer_id: y.answer_id,
+
+    })).map(y => ({
+        selectedOption: y.questuinDetail ? y.questuinDetail.ans.find(z => z.id == y.answer_id) : null,
+        rate: y.questuinDetail ? y.questuinDetail.quest_rate : 0,
+        bonos: user.bonos_score.find(z => z.test_id == test_id)
+    })).map(y => ({
+        score: y.selectedOption ? y.selectedOption.correct * y.rate : 0 + y.bonos ? y.bonos : 0
+    })).reduce((n, i) => n + i.score, 0)
 
 
+}
+async function totalScore(test_id) {
+
+    let allQuestion = await repo.all('exam', 'questions')
+    console.log('allQuestion', allQuestion)
+    return allQuestion.filter(x=>x._id==test_id).reduce((n, i) => n + i.quest_rate, 0)
 
 
 }
@@ -109,37 +116,52 @@ app.post('/api/beginTest', async (req, res) => {
         var o_id = new mongo.ObjectID(req.body.test_id);
 
         let test = (await repo.findSpecial('exam', 'tests', {_id: o_id}))[0]
-        console.log('test',test)
+        console.log('test', test)
         if (test) {
             if (test.end_date != '') {
                 let user = (await repo.findSpecial('exam', 'users', {guid: req.body.guid}))[0]
-                console.log('user',user)
+                console.log('user', user)
 
                 if (user) {
-                    console.log('moment(test.end_date)',moment(test.end_date).format())
-                    console.log('moment()',moment().format())
+                    console.log('moment(test.end_date)', moment(test.end_date).format())
+                    console.log('moment()', moment().format())
                     if (moment(test.end_date).format() > moment().format()) {
-                        console.log('moment(test.end_date) > moment()',true)
+                        console.log('moment(test.end_date) > moment()', true)
 
-                        if(req.body.answer_id & req.body.quistion_id){
+                        console.log('req.body.answer_id & req.body.quistion_id', req.body.answer_id, req.body.quistion_id)
+                        if (req.body.answer_id != null & req.body.quistion_id != null) {
+                            console.log('id condition passs', true)
+                            let lst_ans = user.lst_ans
+                            console.log('lst_ans', lst_ans)
+                            console.log('findIndex', lst_ans.findIndex(x => x.question_id == '604b285e4e25c409bcd47e34'))
+                            let ans = lst_ans[lst_ans.findIndex(x => x.question_id == req.body.quistion_id)]
+                            console.log('ans', ans)
+                            if (moment(ans.end_date).format() > moment().format()) {
+                                console.log('ans.answer_id', ans.answer_id)
+                                if (ans.answer_id == '') {
+                                    console.log('ans.answer_id', true)
 
-                            let ans=user.lst_ans[user.lst_ans.findIndex(x=>x.quistion_id==req.body.quistion_id)]
-                            if(moment(ans.end_date)>moment()){
-                                user.lst_ans[user.lst_ans.findIndex(x=>x.quistion_id==req.body.quistion_id)].answer_id=req.body.answer_id
-                                await repo.updateDuc('exam','users',{guid: req.body.guid},{lst_ans:user.lst_ans})
-                            user=(await repo.findSpecial('exam', 'users', {guid: req.body.guid}))[0]
+                                    lst_ans[lst_ans.findIndex(x => x.question_id == req.body.quistion_id)].answer_id = req.body.answer_id
+
+                                }
                             }
+                            console.log('save answer', lst_ans)
+                            await repo.updateDuc('exam', 'users', {guid: req.body.guid}, {lst_ans: lst_ans})
+                            user = (await repo.findSpecial('exam', 'users', {guid: req.body.guid}))[0]
+
                         }
-                        let testLeft = user.lst_ans.filter(x => x.test_id == req.body.test_id).filter(x=>x.start_date == '')
-                        console.log('testLeft',testLeft)
+                        let testLeft = user.lst_ans.filter(x => x.test_id == req.body.test_id).filter(x => x.start_date == '')
+                        console.log('testLeft', testLeft)
 
                         if (testLeft.length > 0) {
                             var o_id = new mongo.ObjectID(testLeft[0].question_id);
 
-                            let question = await repo.findSpecial('exam', 'questions', {_id: o_id})
-                            console.log('question',question)
+                            let question = (await repo.findSpecial('exam', 'questions', {_id: o_id}))
+                            console.log('question', question)
+                            console.log('test.end_date', test.end_date)
 
                             question = question.map(x => ({
+                            questionInfo:{
                                 quistion_id: x._id,
                                 test_id: x.test_id,
                                 ans_time: x.ans_time,
@@ -149,29 +171,39 @@ app.post('/api/beginTest', async (req, res) => {
                                     id: y.id,
                                     ans_text: y.ans_text,
                                 }))
-                            }))
+                                },
+                                questionLeft:testLeft.length,
+                                totalTimeLeft:moment.utc(moment(test.end_date).diff(moment(),'millisecond')).format('HH:mm:ss'),
+                            }))[0]
+                            console.log('question maped', question)
+
                             let lstAns = user.lst_ans
+                            // console.log('question.ans_time',question.ans_time)
+                            // console.log('moment().format()',moment().format())
+                            // console.log('moment().add(60, \'second\').format()',moment().add(question.ans_time + 1, 'second').format())
                             lstAns[lstAns.indexOf(testLeft[0])].start_date = moment().format()
                             lstAns[lstAns.indexOf(testLeft[0])].end_date = moment().add(question.ans_time + 1, 'second').format()
+                            console.log('lstAns', lstAns)
                             await repo.updateDuc('exam', 'users', {guid: req.body.guid}, {lst_ans: lstAns})
 
                             res.set('Content-Type', 'application/json');
                             res.status(200)
                             res.send({status: 1, info: question})
                         } else {
-                            let score= await calculateScore(req.body.test_id,user)
+                            let score = await calculateScore(req.body.test_id, user)
 
                             res.set('Content-Type', 'application/json');
                             res.status(200)
-                            res.send({status: 2, info: {score:score}})
+                            res.send({status: 2, info: {score: score}})
                         }
 
                     } else {
-                        let score= await calculateScore(req.body.test_id,user)
+                        let score = await calculateScore(req.body.test_id, user)
+                        let tScore = await totalScore(req.body.test_id)
 
                         res.set('Content-Type', 'application/json');
                         res.status(200)
-                        res.send({status: 2, info: {score:score}})
+                        res.send({status: 2, info: {score: score,totalScore:tScore}})
                     }
                 } else {
                     res.set('Content-Type', 'application/json');
