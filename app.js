@@ -76,9 +76,29 @@ async function calculateScore(test_id, user) {
 }
 async function totalScore(test_id) {
 
-    let allQuestion = await repo.all('exam', 'questions')
-    console.log('allQuestion', allQuestion)
-    return allQuestion.filter(x=>x._id==test_id).reduce((n, i) => n + i.quest_rate, 0)
+    const allQuestion =  repo.all('exam', 'questions')
+    const allUser =  repo.all('exam', 'users')
+    let allpromis=await Promise.all([allQuestion,allUser])
+    // console.log('allpromis', allpromis)
+    let temp=allpromis[1].map(x=>({
+        score:x.lst_ans.filter(y=>y.test_id==test_id).map(y=>({
+            answer_id:y.answer_id,
+            question:allpromis[0].find(z=>z._id==y.question_id)
+        })).map(y=>({
+            answer_id:y.answer_id,
+            question:y.question,
+            ans:y.question?y.question.ans.find(z=>z.id==y.answer_id):null,
+            rate:y.question?y.question.quest_rate:0
+        })).map(y=>({
+            score:(y.ans?y.ans.correct:0)*y.rate
+        })).reduce((n,x)=>n+x.score,0),
+        guid:x.guid,
+        bonos:x.bonos_score.find(y=>y.test_id==test_id)?x.bonos_score.find(y=>y.test_id==test_id).score:0,
+
+    }))
+    // console.log('temp',temp[0].lst_ans[0])
+    console.log('temp',temp)
+    // return allQuestion.filter(x=>x._id==test_id).reduce((n, i) => n + i.quest_rate, 0)
 
 
 }
@@ -104,6 +124,54 @@ app.post('/api/insTest', async (req, res) => {
             res.status(200)
             res.send({status: 1, message: 'successful'})
         }
+    } catch (e) {
+        res.set('Content-Type', 'application/json');
+        res.status(400)
+        res.send({status: 0, message: e})
+    }
+})
+app.post('/api/login', async (req, res) => {
+    console.log('body', req.body)
+    try {
+        let user=(await repo.findSpecial('exam','users',{guid:req.body.guid}))[0]
+        console.log('user',user)
+if(user){
+    res.set('Content-Type', 'application/json');
+    res.status(200)
+    res.send( {guid:user.guid,role_id:user.role_id})
+}else{
+    res.set('Content-Type', 'application/json');
+    res.status(400)
+    res.send({status: 0, message: 'کاربر یافت نشد'})
+}
+
+    } catch (e) {
+        res.set('Content-Type', 'application/json');
+        res.status(400)
+        res.send({status: 0, message: e})
+    }
+})
+app.post('/api/allScore', async (req, res) => {
+    console.log('body', req.body)
+    try {
+        totalScore(req.body.test_id)
+        // let users=await repo.all('exam','users')
+        // console.log('users',users.filter((x,ind)=>ind<=5))
+        // users=users.filter((x,ind)=>ind<=5).map( x=>({
+        //     // userObj:x,
+        //     totalScore: calculateScore(req.body.test_id,x)
+        // }))
+
+if(users){
+    res.set('Content-Type', 'application/json');
+    res.status(200)
+    res.send( users)
+}else{
+    res.set('Content-Type', 'application/json');
+    res.status(400)
+    res.send({status: 0, message: 'کاربر یافت نشد'})
+}
+
     } catch (e) {
         res.set('Content-Type', 'application/json');
         res.status(400)
@@ -359,7 +427,16 @@ app.post('/api/delAllUser', async (req, res) => {
     console.log('body', req.body)
     try {
 
-        let i = await repo.deleteAllContent('exam', 'users')
+         await repo.deleteAllContent('exam', 'users')
+        let admin={
+
+            guid: 12345678,
+                role_id: 1,
+            lst_ans: [],
+            bonos_score: [],
+
+        }
+        let i = await repo.insContent('exam', 'users',admin)
         if (i) {
 
             res.set('Content-Type', 'application/json');
