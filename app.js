@@ -116,13 +116,31 @@ app.post('/api/insTest', async (req, res) => {
             end_date: '',
         }
 
-        let i = await repo.insContent('exam', 'tests', req.body)
+        let i = await repo.insContent('exam', 'tests', temp)
         console.log('i', i)
         if (i) {
 
             res.set('Content-Type', 'application/json');
             res.status(200)
             res.send({status: 1, message: 'successful'})
+        }
+    } catch (e) {
+        res.set('Content-Type', 'application/json');
+        res.status(400)
+        res.send({status: 0, message: e})
+    }
+})
+app.get('/api/allTest', async (req, res) => {
+    console.log('body', req.body)
+    try {
+
+
+        let temp = await repo.all('exam', 'tests')
+        if (temp) {
+
+            res.set('Content-Type', 'application/json');
+            res.status(200)
+            res.send({status: 1, info: temp})
         }
     } catch (e) {
         res.set('Content-Type', 'application/json');
@@ -355,6 +373,19 @@ app.post('/api/insQuest', async (req, res) => {
     try {
         let resultCorrect = checkOneCorrect(req.body.ans)
         let resultNumOption = checkNumOption(req.body.ans)
+        let msg=[]
+        let field=[
+            'test_id',
+            'ans_time',
+            'quest_text',
+            'quest_rate',
+            'ans',
+        ]
+        Object.keys(res.body).forEach(x=>{
+            if(!field.some(y=>y==x)){
+                msg=msg.push(` وارد نشده ${x} فیلد  `)
+            }
+        })
         console.log('resultCorrect resultNumOption', resultCorrect, resultNumOption)
         if (resultCorrect.result == 'ok' & resultNumOption.result) {
             let temp = {
@@ -378,7 +409,7 @@ app.post('/api/insQuest', async (req, res) => {
                 res.send({status: 1, message: 'successful'})
             }
         } else {
-            let msg = [].push(resultNumOption.message)
+             msg = msg.push(resultNumOption.message)
             resultCorrect.result != 'ok' ? msg.push(resultCorrect.message) : null
             res.set('Content-Type', 'application/json');
             res.status(400)
@@ -423,22 +454,22 @@ app.post('/api/insUser', async (req, res) => {
         res.send({status: 0, message: e})
     }
 })
-app.post('/api/delAllUser', async (req, res) => {
+app.delete('/api/delAllUser', async (req, res) => {
     console.log('body', req.body)
     try {
 
-         await repo.deleteAllContent('exam', 'users')
+        let i = await repo.deleteAllContent('exam', 'users')
         let admin={
 
-            guid: 12345678,
+            guid: '12345678',
                 role_id: 1,
             lst_ans: [],
             bonos_score: [],
 
         }
-        let i = await repo.insContent('exam', 'users',admin)
+         await repo.insContent('exam', 'users',admin)
         if (i) {
-
+console.log('i',i)
             res.set('Content-Type', 'application/json');
             res.status(200)
             res.send({status: 1, message: `${i} کاربر حذف شد`})
